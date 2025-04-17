@@ -57,11 +57,29 @@ public class FlightFilterTest {
     }
 
     @Test
-    void testDepartureEqualToNowIsValid() {
+    void testFilterChainAppliesAllFiltersCorrectly() {
         LocalDateTime now = LocalDateTime.now();
-        Flight flight = new Flight(List.of(new Segment(now, now.plusHours(1))));
-        DepartureBeforeNowFilter filter = new DepartureBeforeNowFilter();
 
-        assertTrue(filter.isValid(flight),"Вылет точно в текущий момент времени (now) должен считаться валидным");
+        Flight validFlight = new Flight(List.of(new Segment(now.plusHours(1), now.plusHours(2))));
+
+        Flight flightWithPastDeparture = new Flight(List.of(new Segment(now.minusHours(1), now.plusHours(1))));
+
+        Flight flightWithWrongArrival = new Flight(List.of(new Segment(now.plusHours(3), now.plusHours(1))));
+
+        Flight flightWithLongGroundTime = new Flight(List.of(new Segment(now.plusHours(1), now.plusHours(2)),
+                new Segment(now.plusHours(5), now.plusHours(6))));
+
+        List<Flight> flights = List.of(validFlight, flightWithPastDeparture, flightWithWrongArrival, flightWithLongGroundTime);
+
+        List<FlightFilter> filters = List.of(
+                new DepartureBeforeNowFilter(),
+                new ArrivalBeforeDepartureFilter(),
+                new GroundTimeFilter()
+        );
+
+        List<Flight> result = FlightFilterService.filterMulti(flights, filters);
+
+        assertEquals(1, result.size(), "Должен остаться только один валидный перелёт");
+        assertEquals(validFlight, result.get(0), "Этот перелёт должен пройти все фильтры");
     }
 }
